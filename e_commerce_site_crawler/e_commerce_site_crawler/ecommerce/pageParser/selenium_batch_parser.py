@@ -71,7 +71,9 @@ def get_url_by_attrs_dic(driver,attrs_dic):
 
 
 def get_all_page_number(url):
+    print "getallpage_number:" + url
     driver = get_webdriver(url)
+
     attemps = 0
     ATTEMPS_TIMES = 3  # 失败尝试3次
     all_page_numer = -1
@@ -79,12 +81,9 @@ def get_all_page_number(url):
     # driver.get(url)
     #
     # driver.find_element_by_xpath()
-
-
-
-
     while (attemps < ATTEMPS_TIMES and all_page_numer==-1):
         driver.get(url)
+        # print driver.page_source
         soup = get_soup_by_html_source(driver.page_source)
 
 
@@ -145,7 +144,7 @@ def get_all_page_number(url):
 返回值：list[url,urlpage2,urlpag3]
 """
 def get_next_urlList_by_firstpage_url(url):
-    driver = webdriver.PhantomJS()
+    driver = webdriver.PhantomJS('/usr/local/bin/phantomjs')
     print(url)
     attemps = 0
     ATTEMPS_TIMES = 3 #失败尝试3次
@@ -250,8 +249,8 @@ http://search.jumei.com/?filter=0-11-1&search=%E9%9D%A2%E8%86%9C
        key          value
 """
 
-def get_pageKeyDic_and_searchKeywordKey(page_urls,searchKeyword):
-    
+# def get_pageKeyDic_and_searchKeywordKey(page_urls,searchKeyword):
+def get_pageKeyDic(page_urls):
     url_2 = page_urls[1]
     url_3 = page_urls[2]
     # 获取倒数第二个元素
@@ -262,14 +261,14 @@ def get_pageKeyDic_and_searchKeywordKey(page_urls,searchKeyword):
 
     """-------------------------返回值-----------------------------"""
     pageKeyDic = {}
-    try:
-        re_str = "\?\w+=%s|&\w+=%s|/\w+=%s"%(searchKeyword,searchKeyword,searchKeyword)
-        print (re_str)
-        print (url_2)
-        searchKeywordKey = re.findall(re_str,url_2)[0].split("=")[0][1:]
-
-    except:
-        searchKeywordKey = "SEARCHKEYERROR"
+    # try:
+    #     re_str = "\?\w+=%s|&\w+=%s|/\w+=%s"%(searchKeyword,searchKeyword,searchKeyword)
+    #     print (re_str)
+    #     print (url_2)
+    #     searchKeywordKey = re.findall(re_str,url_2)[0].split("=")[0][1:]
+    #
+    # except:
+    #     searchKeywordKey = "SEARCHKEYERROR"
 
     """-----------------------------------------------------------"""
 
@@ -321,12 +320,12 @@ def get_pageKeyDic_and_searchKeywordKey(page_urls,searchKeyword):
 
                 pageKeyDic[pieces_2_splited[0]] = [pieces_2_splited[-1],page_index_to_dx]
 
-    # print pageKeyDic,searchKeywordKey
 
-    return pageKeyDic,searchKeywordKey
+    # return pageKeyDic,searchKeywordKey
+    return pageKeyDic
 
 # 必须是第二页之后,返回下一页的url
-def get_next_page_by_pageKeyDic_currentPageUrl_pageKey_and_searchKey(pageKeyDic,page_urls,current_page_url):
+def get_next_page_by_pageKeyDic_pageUrls_currentPageUrl(pageKeyDic,page_urls,current_page_url):
     # for domain, page_urls in page_url_dic.items():
     url_0 = page_urls[0]
     print (url_0)
@@ -421,10 +420,10 @@ def get_all_page_urls(pageKeyDic,page_urls,all_page_number):
         all_url_list.append(current_url)
     return all_url_list
 
-def get_nextpage_info(url,searchKeyword):
+def get_nextpage_info(url):
 
     page_urls = get_next_urlList_by_firstpage_url(url)
-    pageKeyDic,searchKeywordKey =  get_pageKeyDic_and_searchKeywordKey(page_urls,searchKeyword)
+    pageKeyDic =  get_pageKeyDic(page_urls)
     # print get_next_page_by_pageKeyDic_currentPageUrl_pageKey_and_searchKey(pageKeyDic,page_urls,page_urls[-1])
     get_all_page_urls(pageKeyDic,page_urls,20)
 
@@ -450,9 +449,24 @@ if __name__ == '__main__':
     #     get_all_page_number(x)
     # print get_next_urlList_by_firstpage_url(url)
     # get_nextpage_info(url_list[0],"%CA%E9")
-    url = "https://s.taobao.com/list?spm=a217f.7278017.1997728653.6.j5XpLB&q=%E8%BD%BB%E8%96%84%E6%AC%BE&style=grid&seller_type=taobao&cps=yes&cat=50099260"
-    print(get_next_urlList_by_firstpage_url(url))
+    url = "https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D"
 
+    # page_list = get_next_urlList_by_firstpage_url(url)
+    # print get_pageKeyDic(page_list)
+    # print page_list
+    # Dict_page = {'s': ['60', 60]}
+
+
+
+    res = get_all_page_urls({'s': ['60', 60]},[u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D',
+     u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=60',
+     u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=120'],100)
+    for x in res:
+        print str(x)
+
+
+
+    # print get_all_page_number(url)
     # for x in url_list:
     #     print get_url_domain(x)
 

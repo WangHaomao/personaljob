@@ -7,7 +7,8 @@ from e_commerce_site_crawler.items import ECommerceSiteCrawlerItem
 
 from e_commerce_site_crawler.ecommerce.pageParser.shopping_navigation_parser import get_nav
 from e_commerce_site_crawler.ecommerce.pageParser.selenium_batch_parser import \
-    get_pageKeyDic_and_searchKeywordKey,get_next_urlList_by_firstpage_url,get_all_page_number,get_all_page_urls
+    get_pageKeyDic,get_next_urlList_by_firstpage_url,get_all_page_number,get_all_page_urls
+from e_commerce_site_crawler.ecommerce.spiderUtils.parser_util import get_html_with_request
 from urllib2 import quote,unquote
 import time
 
@@ -22,48 +23,103 @@ import time
 
 if __name__ == '__main__':
 
-    # url = "https://www.taobao.com/"
+    url = "https://www.taobao.com/"
     # url = "http://www.dangdang.com/"
+    # url = "https://www.jd.com/"
 
-    url = "https://www.jd.com/"
-    number, mylist = get_nav(url)
+    number, mylist = get_nav(url,0)
     searchKeywordValue = None
     page_list = []
     pageKeyDic = {}
 
-
+    # 第一遍遍历
+    goal_url = ""
+    goal_key = ""
+    goal_url_len = -1
+    all_meets_url_number = 0 #统计有多少个关键字在url中
     for tlist in mylist:
         # pass
-        # if (tlist[0] != None and tlist[1] != None and tlist[0] in tlist[1]):
-            # searchKeywordValue = quote(tlist[0].encode('utf8'))
-            # item_list_url = tlist[1].replace(tlist[0], searchKeywordValue)
-            # print(item_list_url)
-            # page_list = get_next_urlList_by_firstpage_url(item_list_url)
-            # pageKeyDic, searchKeywordKey = get_pageKeyDic_and_searchKeywordKey(page_list, searchKeywordValue)
+        o_url = tlist[1]
+        o_key = tlist[0]
+        if ((o_key != None and o_url != None and o_key in o_url)
+            and ("search" in o_url or 'list' in o_url)):
+            if goal_url_len == -1 or len(tlist[1]) < goal_url_len:
+                goal_url = tlist[1]
+                goal_key = tlist[0]
+                goal_url_len = len(tlist[1])
 
-            # if (searchKeywordKey != "SEARCHKEYERROR"): break
-        print ("%s:%s"%(tlist[0],tlist[1]))
+            all_meets_url_number+=1
+    print goal_url
 
-    # demo_url0 = page_list[0]
-    # demo_url1 = page_list[1]
-    #
-    # for tlist in mylist:
-    #     if (tlist[0] != None and tlist[1] != None):
-    #         next_url1 = demo_url0.replace("%s=%s" % (searchKeywordKey, searchKeywordValue),
-    #                                       "%s=%s" % (searchKeywordKey, quote(tlist[0].encode('utf8'))))
-    #         next_url2 = demo_url1.replace("%s=%s" % (searchKeywordKey, searchKeywordValue),
-    #                                       "%s=%s" % (searchKeywordKey, quote(tlist[0].encode('utf8'))))
-    #
-    #         # print (next_url1)
-    #         # print "pagetlist = %s" % page_list
-    #         allnumber = get_all_page_number(next_url1)
-    #         print ("%s,%s,%s"%(searchKeywordKey,str(searchKeywordValue),str(tlist[0])))
-    #         print next_url2
-    #         next_all_url_list = get_all_page_urls(pageKeyDic, page_urls=page_list,
-    #                                                                        all_page_number=allnumber)
-    #         print len(next_all_url_list)
-    #         print "-------------------------------------------------------------------------------------------------"
-    #         print (time.ctime())
-            # for next_url in next_all_url_list:
-            #     print (next_url)
-                # Request(callback=self.goods_list_parse, url=next_url)
+    res_url_list = []
+    if(goal_url != -1):
+        """
+            对url进行一遍简化
+        """
+        goal_url_spilted = goal_url.split('&')
+        key_index = 0
+        simple_url = ""
+        # print goal_url_spilted
+        while key_index < len(goal_url_spilted):
+            if(goal_key in goal_url_spilted[key_index]):
+                # [:]左闭右开
+                simple_url = ('&'.join(goal_url_spilted[:key_index+1]))
+
+                key_index += 1
+                break
+            key_index+=1
+
+        original_html_len = len(get_html_with_request(goal_url))
+
+        while (key_index<len(goal_url_spilted)):
+            if (original_html_len <= len(get_html_with_request(simple_url))):
+                break
+            simple_url = simple_url + "&" + goal_url_spilted[key_index]
+            key_index+=1
+        for tlist in mylist:
+            if tlist[0] != None and tlist[0] != '':
+                searchKeywordValue = quote(tlist[0].encode('utf8'))
+                item_list_url = simple_url.replace(goal_key, searchKeywordValue)
+                # print item_list_url
+                res_url_list.append(item_list_url)
+    else:
+        # 假设所有url类型都相同，且默认为商品列表页面，进行解析
+        for tlist in mylist:
+            # print item_list_url
+            if tlist[1]!= None and tlist[1]!='':
+                res_url_list.append(tlist[1])
+
+
+
+
+    if(len(res_url_list)>1):
+
+        test_url = res_url_list[0]
+
+        page_list = get_next_urlList_by_firstpage_url(test_url)
+        pageDict = get_pageKeyDic(page_list)
+
+        print pageDict
+
+        print page_list
+
+        attached_1 = page_list[1].replace(test_url, '')
+        attached_2 = page_list[2].replace(test_url, '')
+
+
+        for goods_list_url in res_url_list:
+            next_url1 =  goods_list_url + attached_1
+            next_url2 =  goods_list_url + attached_2
+
+            # print next_url2
+            allnumber = get_all_page_number(goods_list_url)
+            print allnumber
+            # next_all_url_list = get_all_page_urls(pageKeyDic,page_list,allnumber)
+
+            res = get_all_page_urls(pageDict, [u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D',
+                                                        u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=60',
+                                                        u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=120'],
+                                    allnumber)
+            for x in res:
+                print str(x)
+            print "----------$$$$$$$$$------------"

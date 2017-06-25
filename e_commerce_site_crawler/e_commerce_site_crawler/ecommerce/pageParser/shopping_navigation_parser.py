@@ -15,7 +15,7 @@ from e_commerce_site_crawler.ecommerce.spiderUtils.parser_util import get_soup_b
 """
 def get_nav_by_keyword_scoring(container,indexURL):
     # featureDict = load_keyword_file('e-commerce.txt')
-    featureDict = load_keyword_file('../../e-commerce.txt')
+    featureDict = load_keyword_file('../e-commerce.txt')
     scoreList = []
     javascript_num_list =[]
     index = 0
@@ -216,12 +216,14 @@ methon
 """
 def get_nav_in_url(soup, url,parser_method):
     allCategory_page_url = get_allCategory_from_Key(soup=soup)
+
+    # 方法一：获取大分类页面
     if (allCategory_page_url != None and "javascript" not in allCategory_page_url):
         # log_util.error("大分类页面：" + allCategory_page_url)
 
         allCategory_page_url = url_sifter(url, allCategory_page_url)
-        print ("大分类页面：" + allCategory_page_url)
-        print ("解析方法：%d,%d" % (parser_method, 1))
+        # print ("大分类页面：" + allCategory_page_url)
+        # print ("解析方法：%d,%d" % (parser_method, 1))
         # if(methon == 2):
         #     next_soup = get_soup_by_selenium_with_sleep(allCategory_page_url)
         # else:next_soup = get_soup_by_request(url)
@@ -262,6 +264,20 @@ get_deep 表示当前对某个网页进行了几次获取nav了，即获取nav�
 默认：一般以非大页面类获取的nav都有子目录，所有以进行一次获取nav
 
 """
+def mylist_set(_list):
+
+    url_set = set()
+    res_list = []
+    for each in _list:
+        url = each[1]
+        if(url != None and url!= '' and url not in url_set):
+            url_set.add(url)
+            res_list.append(each)
+        # else:
+        #     print 'common'
+
+    return res_list
+
 def get_nav(url,get_deep):
     method,nav = get_aTag_nav_by_request(url)
     if(method==-1):
@@ -283,11 +299,13 @@ def get_nav(url,get_deep):
             elif(method_2!=-1):
                 nav_list.extend(nav_2)
 
-        return 1,nav_list
-
+        # return 1,list(set(nav_list))
+        return 1,mylist_set(nav_list)
     else:
-        return method,nav
+        return method,mylist_set(nav)
 
+from e_commerce_site_crawler.ecommerce.spiderUtils.url_utils import urls_clustering
+import time
 if __name__ == '__main__':
 
     # url = 'https://www.taobao.com/'
@@ -309,7 +327,11 @@ if __name__ == '__main__':
     method,mylist = get_nav(url,0)
 
     # print (number)
+    urls = []
     for xxlist in mylist:
         print ("%s:%s"%(xxlist[0],xxlist[1]))
-
-
+    #     if(xxlist[1] != None and xxlist[1]!=''):
+    #         urls.append(xxlist[1])
+    # print time.ctime()
+    # urls_clustering(urls)
+    # print time.ctime()

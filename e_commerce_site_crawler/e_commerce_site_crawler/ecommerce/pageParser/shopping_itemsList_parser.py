@@ -2,16 +2,18 @@
 import re
 import requests
 from lxml import etree
+import json
+
 import sys
-# reload(sys)
-# sys.setdefaultencoding('utf-8')
+reload(sys)
+sys.setdefaultencoding('utf-8')
 from e_commerce_site_crawler.\
     ecommerce.spiderUtils.\
     parser_util \
     import  get_soup_by_request_without_script,\
     get_soup_by_selenium_without_script,\
     get_xpath_doc_by_request_by_html_source,\
-    get_soup_by_html_source
+    get_soup_by_html_source,get_soup_by_request
 
 
 
@@ -124,10 +126,114 @@ def get_next_page_url(url_list):
     pass
 
 
+
+def analysis_json_data(url):
+    rank_dic = {}
+    def get_json_path(container,json_path):
+        # if(rank_dic.has_key(json_path)): rank_dic[json_path] += 1
+        # else: rank_dic[json_path] = 1
+
+        if(isinstance(container,dict)):
+            # print container
+            for key,value in container.items():
+                # print ("%s : %s")%(key,value)
+                get_json_path(value,json_path+"/"+key)
+
+        elif(isinstance(container,list)):
+            # print container
+            if (rank_dic.has_key(json_path)):
+                rank_dic[json_path] += 1
+            else:
+                rank_dic[json_path] = 1
+            # print json_path
+            # return json_path
+            for next_container in container:
+                # print next_container
+                get_json_path(next_container,json_path+"/a_list")
+
+        # else:
+            # print container
+    soup = get_soup_by_request(url)
+    shop_json = ""
+    maxlen = -1
+    for y in soup.find_all("script"):
+        # print str(y)
+        for x in re.findall("\{.*\}",str(y)):
+            tmp_len = len(x)
+            if (tmp_len > maxlen):
+                maxlen = tmp_len
+                shop_json = x
+
+    json_praser = json.loads(shop_json)
+    get_json_path(json_praser,"")
+
+    for key,value in rank_dic.items():
+        if value>20:
+            print "(%s,%s)"%(key,value)
+
+
+    # print type(json_praser["mods"]["itemlist"]["data"]["auctions"])
+    # for li in json_praser["mods"]["itemlist"]["data"]["auctions"]:
+    #     for key,value in li.items():
+    #         print "%s:%s"%(key,value)
+    #
+    #     print "-------------------"
+
+# 选择最好多测试几遍，影响后续的策略
+def debug_script_html_len(url):
+    soup = get_soup_by_request(url)
+
+    print len(str(soup.prettify()))
+    print "---------------------------------------------"
+    for ss in soup.find_all("script"):
+        print len(str(ss))
+    # 去除所有script脚本文件后的html标签树
+    [script.extract() for script in soup.findAll('script')]
+    print "---------------------------------------------"
+    print len(str(soup.prettify()))
+
+def goods_list_method_selector(url):
+    try:
+        soup = get_soup_by_request(url)
+    except:
+
+        return 'selenium'
+
+    tag_script_list =  soup.find_all('script')
+    max_script_str = ''
+    max_script_len = -1
+
+    for each_script in tag_script_list:
+        current_str = str(each_script)
+        current_len = len(current_str)
+        if(current_len > max_script_len):
+            max_script_len = current_len
+            max_script_str = current_str
+    # 去除所有script脚本文件后的html标签树
+    [script.extract() for script in soup.findAll('script')]
+    html_without_script_len =  len(str(soup.prettify()))
+
+    if(html_without_script_len < 10000 and max_script_len < 10000 or
+           (max(html_without_script_len,max_script_len) / min(html_without_script_len,max_script_len)) ):
+        print 'WEBDRIVER'
+    # 大了很多
+    elif(max_script_len > html_without_script_len):
+        print 'JSON'
+    else:
+        print 'REQUEST'
+
+def analysis_selector(method,url):
+    if(method == 'WEBDRIVER'):
+        pass
+    elif(method == 'JSON'):
+        pass
+    else:
+        pass
+
 if __name__ == '__main__':
 
-    url = "https://search.jd.com/Search?keyword=%E6%89%8B%E6%9C%BA&enc=utf-8&suggest=1.his.0.0&wq=&pvid=9e4453eb3e86474c9f0d8ce8719b03aa"
-    # url = "https://s.taobao.com/search?initiative_id=tbindexz_20170509&ie=utf8&spm=a21bo.50862.201856-taobao-item.2&sourceId=tb.index&search_type=item&ssid=s5-e&commend=all&imgfile=&q=%E6%89%8B%E6%9C%BA&suggest=0_1&_input_charset=utf-8&wq=shouji&suggest_query=shouji&source=suggest"
+    # url = "https://search.jd.com/Search?keyword=%E6%89%8B%E6%9C%BA&enc=utf-8&suggest=1.his.0.0&wq=&pvid=9e4453eb3e86474c9f0d8ce8719b03aa"
+    url = "https://s.taobao.com/search?initiative_id=tbindexz_20170509&ie=utf8&spm=a21bo.50862.201856-taobao-item.2&sourceId=tb.index&search_type=item&ssid=s5-e&commend=all&imgfile=&q=%E6%89%8B%E6%9C%BA&suggest=0_1&_input_charset=utf-8&wq=shouji&suggest_query=shouji&source=suggest"
     # url = "http://list.mogujie.com/s?q=%E6%89%8B%E6%9C%BA%E5%A3%B3%E8%8B%B9%E6%9E%9C6&from=querytip0&ptp=1._mf1_1239_15261.0.0.5u1T9Y"
     # url = "http://search.dangdang.com/?key=%CA%E9&act=input"
     # url = "http://search.suning.com/%E6%89%8B%E6%9C%BA/"
@@ -139,11 +245,14 @@ if __name__ == '__main__':
     # url = "https://www.vmall.com/search?keyword=%E6%89%8B%E6%9C%BA"
 
     # soup = get_soup_by_selenium_without_script(url)
-    soup = get_soup_by_request_without_script(url)
+    # soup = get_soup_by_request_without_script(url)
     # 已经获得
-    goods_list_tag = get_goods_list_tag_from_soup(soup)
+    # goods_list_tag = get_goods_list_tag_from_soup(soup)
+    # goods_list_method_selector(url)
 
 
+
+    # debug_script_html_len(url)
     '''
         暂时不考虑没attribute的标签
     '''
@@ -151,8 +260,8 @@ if __name__ == '__main__':
     # print goods_list_tag.name
     # print goods_list_tag.attrs
     #
-    tag_name = goods_list_tag.name
-    attrs_dic =  goods_list_tag.attrs
+    # tag_name = goods_list_tag.name
+    # attrs_dic =  goods_list_tag.attrs
 
 
     # print soup.find_all(tag_name,attrs=attrs_dic)
@@ -161,3 +270,6 @@ if __name__ == '__main__':
     #     print x
 
     # get_goods_url_from_tag(goods_list_tag)
+
+
+    analysis_json_data('https://s.taobao.com/list?q=%E8%B4%9D%E5%8F%B8')

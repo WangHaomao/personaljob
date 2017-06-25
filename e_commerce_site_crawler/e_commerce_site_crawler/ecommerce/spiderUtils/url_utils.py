@@ -1,6 +1,9 @@
 #coding:utf-8
 
 import re
+import pprint
+from difflib import SequenceMatcher
+from cluster import HierarchicalClustering
 # class URLUtils:
     # def __init__(self):
     #     pass
@@ -56,6 +59,20 @@ def get_url_domain(url):
 def get_partial_url(url):
     res_url = re.search(".+\.(com.cn|com|cn|net|org|wang|cc)", url).group()
     return res_url
+
+def urls_clustering(urls):
+    # 输入 urls
+    # 计算url之间的距离
+    # 使用difflib中的SequenceMatcher计算
+    def distance(url1, url2):
+        ratio = SequenceMatcher(None, url1, url2).ratio()
+        return 1.0 - ratio
+
+    # 执行层次聚类
+    hc = HierarchicalClustering(urls, distance)
+    clusters = hc.getlevel(0.2)
+    pprint.pprint(clusters)
+
 
 if __name__ == '__main__':
     print (url_sifter("https://www.taobao.com/","//www.taobao.com/tbhome/page/market-list"))
