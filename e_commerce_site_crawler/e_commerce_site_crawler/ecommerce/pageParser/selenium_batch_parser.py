@@ -12,8 +12,8 @@ from e_commerce_site_crawler.ecommerce.spiderUtils.url_utils import url_sifter,g
 import re
 import time
 import logging
-# reload(sys)
-# sys.setdefaultencoding('utf-8')
+reload(sys)
+sys.setdefaultencoding('utf-8')
 """
 1、商品列表页面
 """
@@ -201,6 +201,9 @@ def get_next_urlList_by_firstpage_url(url):
         if(url_2.lower() == url_3.lower()):
             url_2 = get_url_by_attrs_dic(driver, number_to_url_dic["attrs_dic2"])
             url_3 = get_url_by_attrs_dic(driver, number_to_url_dic["attrs_dic3"])
+            # 出现解析问题，这个url可以跳过
+            if (url_2.lower() == url_3.lower()):
+                return None
 
             page_url_list = [url, url_2, url_3]
             break
@@ -458,9 +461,13 @@ if __name__ == '__main__':
 
 
 
-    res = get_all_page_urls({'s': ['60', 60]},[u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D',
-     u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=60',
-     u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=120'],100)
+    # res = get_all_page_urls({'s': ['60', 60]},[u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D',
+    #  u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=60',
+    #  u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=120'],100)
+    res = get_all_page_urls({'s': ['60', 60]}, [u'https://s.taobao.com/list?q=手机',
+                                                u'https://s.taobao.com/list?q=手机&bcoffset=12&s=60',
+                                                u'https://s.taobao.com/list?q=手机&bcoffset=12&s=120'],
+                            100)
     for x in res:
         print str(x)
 

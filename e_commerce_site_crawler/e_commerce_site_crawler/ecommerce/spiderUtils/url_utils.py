@@ -71,7 +71,9 @@ def urls_clustering(urls):
     # 执行层次聚类
     hc = HierarchicalClustering(urls, distance)
     clusters = hc.getlevel(0.2)
-    pprint.pprint(clusters)
+    # pprint.pprint(clusters)
+
+    return clusters
 
 
 if __name__ == '__main__':

@@ -130,11 +130,13 @@ def get_xpath_doc_by_request_by_html_source(html_source):
     doc = etree.HTML(html_source)
     return doc
 
-def get_webdriver(url):
+def get_webdriver():
     dcap = dict(DesiredCapabilities.PHANTOMJS)
     dcap["phantomjs.page.settings.userAgent"] = (random.choice(user_agent_list))
     driver = webdriver.PhantomJS(desired_capabilities=dcap,executable_path="/usr/local/bin/phantomjs")
-
+    # 设置时长
+    driver.set_page_load_timeout(120)
+    driver.set_script_timeout(120)
     return driver
 
 def get_html_with_request(url):

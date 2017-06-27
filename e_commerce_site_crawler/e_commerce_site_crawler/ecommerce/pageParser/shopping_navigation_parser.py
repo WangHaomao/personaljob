@@ -312,7 +312,7 @@ if __name__ == '__main__':
     # 当当
     # url = "http://www.dangdang.com/"
     # 唯品会
-    url = "http://www.vip.com/"
+    # url = "http://www.vip.com/"
     # 凡客诚品
     # url = "http://www.vancl.com/"
     # 一号店
@@ -322,7 +322,7 @@ if __name__ == '__main__':
     # 美丽说
     # url = "http://www.meilishuo.com/"
 
-    # url = "https://www.jd.com/"
+    url = "https://www.jd.com/"
 
     method,mylist = get_nav(url,0)
 

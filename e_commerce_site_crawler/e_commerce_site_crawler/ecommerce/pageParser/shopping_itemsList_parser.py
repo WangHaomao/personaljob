@@ -1,12 +1,10 @@
 # -*- coding:utf-8 _*-
 import re
-import requests
-from lxml import etree
 import json
-
 import sys
-reload(sys)
-sys.setdefaultencoding('utf-8')
+import pprint
+from lxml import etree
+from e_commerce_site_crawler.ecommerce.spiderUtils.url_utils import urls_clustering,url_sifter,get_url_domain
 from e_commerce_site_crawler.\
     ecommerce.spiderUtils.\
     parser_util \
@@ -15,7 +13,8 @@ from e_commerce_site_crawler.\
     get_xpath_doc_by_request_by_html_source,\
     get_soup_by_html_source,get_soup_by_request
 
-
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 # 判断是否是商品列表的条件
 """
@@ -33,11 +32,88 @@ def check_is_goods_list(old_html_len,current_tag):
         return source_len
     return  -1
 
-def get_goods_list_tag_from_url(url):
-    soup = get_soup_by_selenium_without_script(url)
-    return get_goods_list_tag_from_soup(soup)
+def is_single_tag(tag):
+    inner_tag_number = 0
+    for child_tag in tag.children:
+        if(child_tag.name != None):
+            inner_tag_number +=1
+            if(inner_tag_number >= 2):return False
 
-def get_goods_list_tag_from_soup(soup):
+    return True
+
+def analysis_by_tag(goods_list_tag,url):
+    detail_url_set = set()
+    for each_tag in goods_list_tag.contents:
+
+        if(each_tag.name!=None):
+
+            current_url_list = []
+            for inner_tag in each_tag.descendants:
+
+                """
+                商品列表页面本身含有一定的信息，此处暂时不做抓取（在商品详细页面抓取）
+                
+                以下注释信息是对商品信息的抓取
+                """
+                # if(inner_tag.name!=None and is_single_tag(inner_tag)):
+                #     # print inner_tag
+                #     tag_text =  inner_tag.text.replace('\n',"")
+                #     if(message_len < len(tag_text)):
+                #         message_len = len(tag_text)
+                #         message = tag_text
+                #
+                #
+                #     if(u'¥' in tag_text):
+                #         print tag_text
+                #
+                #     elif(u'评价' in tag_text or u'评论' in tag_text):
+                #         re_comment_res = re.search(u'\d+\+{0,1}人{0,1}评价|\d+\+{0,1}人{0,1}评论|\d+条评论', tag_text)
+                #         if re_comment_res !=None:
+                #             print re_comment_res.group()
+
+                if(inner_tag.name!=None and inner_tag.name =='a'):
+                    try:
+                        detail_url =  url_sifter(url=inner_tag['href'],parent_url=url)
+                        if('javascript' not in detail_url and 'list' not in detail_url and 'search' not in detail_url
+                           and detail_url not in current_url_list):
+
+                            current_url_list_len = len(current_url_list)
+
+                            check_flag = True
+                            for i in range(0,current_url_list_len):
+                                if(detail_url in current_url_list[i]):
+                                    current_url_list[i] = detail_url
+                                    check_flag = False
+                                    break
+                                elif(current_url_list[i] in detail_url):
+                                    check_flag = False
+                                    break
+                            if(check_flag == True):
+                                current_url_list.append(detail_url)
+                    except:
+                        pass
+            detail_url_set = detail_url_set | (set(current_url_list))
+
+    res_detail_urls_list = urls_clustering(list(detail_url_set))
+
+    res_max_len = -1
+    res_max_list = []
+    for i in res_detail_urls_list:
+        i_len = len(i)
+        if(res_max_len<i_len):
+            res_max_len = i_len
+            res_max_list = i
+
+    #debug
+    pprint.pprint(res_max_list)
+    # urls_clustering(res_max_list)
+    print len(res_max_list)
+
+    return res_max_list
+
+
+
+def get_goods_list_tag_by_soup(soup):
     # 按块查找，找到相似度较高且连续数高于某个值的外围后停止 ，每次选择当前区域内的最复杂区域（此处缩略为字符长最长的）
     # soup = soup = get_soup_by_request_without_script(url)
 
@@ -106,6 +182,7 @@ def get_goods_list_tag_from_soup(soup):
             goods_tag = max_len_tag
 
         deep+=1
+    # analysis_by_tag(max_len_tag)
     return max_len_tag
 
 def get_goods_url_from_tag(wrapper_tag):
@@ -127,7 +204,7 @@ def get_next_page_url(url_list):
 
 
 
-def analysis_json_data(url):
+def analysis_json_data(url,soup):
     rank_dic = {}
     def get_json_path(container,json_path):
         # if(rank_dic.has_key(json_path)): rank_dic[json_path] += 1
@@ -153,7 +230,7 @@ def analysis_json_data(url):
 
         # else:
             # print container
-    soup = get_soup_by_request(url)
+    # soup = get_soup_by_request(url)
     shop_json = ""
     maxlen = -1
     for y in soup.find_all("script"):
@@ -167,17 +244,51 @@ def analysis_json_data(url):
     json_praser = json.loads(shop_json)
     get_json_path(json_praser,"")
 
+    second_dic = {}
+    max_path_str = ""
+    max_path_len = -1
     for key,value in rank_dic.items():
-        if value>20:
-            print "(%s,%s)"%(key,value)
+        if value>20 and "a_list" in key:
+            # print "(%s,%s)"%(key,value)
+            tmp_str = (key).split('a_list')[0]
+            if second_dic.has_key(tmp_str):
+                second_dic[tmp_str] += 1
+            else:
+                second_dic[tmp_str] = 1
+            if(second_dic[tmp_str] > max_path_len):
+                max_path_len = second_dic[tmp_str]
+                max_path_str = tmp_str
 
+    print max_path_str
+    print len(max_path_str.split('/'))
 
-    # print type(json_praser["mods"]["itemlist"]["data"]["auctions"])
-    # for li in json_praser["mods"]["itemlist"]["data"]["auctions"]:
-    #     for key,value in li.items():
-    #         print "%s:%s"%(key,value)
-    #
-    #     print "-------------------"
+    def not_empty(s): return s and s.strip()
+
+    json_key_list =  list(filter(not_empty, max_path_str.split('/')))
+
+    json_key_index = 0
+    res_dic = json_praser
+    while json_key_index < len(json_key_list):
+        res_dic = res_dic[json_key_list[json_key_index]]
+
+        json_key_index+=1
+
+    for li in res_dic:
+        for key,value in li.items():
+            # print "%s:%s"%(key,value)
+            if("price" in key):
+                print value
+            elif("title" in key):
+                print value
+            elif("detail" in key):
+                print value,key
+            # try:
+            #     print re.search("[0-9]+\.[0-9]+",value).group()
+            #     print key
+            # except:
+            #     # print re.search("[0-9]+\.[0-9]+",value).group()
+            #     pass
+        print "-------------------"
 
 # 选择最好多测试几遍，影响后续的策略
 def debug_script_html_len(url):
@@ -192,15 +303,14 @@ def debug_script_html_len(url):
     print "---------------------------------------------"
     print len(str(soup.prettify()))
 
-def goods_list_method_selector(url):
-    try:
-        soup = get_soup_by_request(url)
-    except:
-
-        return 'selenium'
+def analysis_method_selector(soup):
+    # try:
+    #     soup = get_soup_by_request(url)
+    # except:
+    #
+    #     return 'selenium'
 
     tag_script_list =  soup.find_all('script')
-    max_script_str = ''
     max_script_len = -1
 
     for each_script in tag_script_list:
@@ -213,32 +323,34 @@ def goods_list_method_selector(url):
     [script.extract() for script in soup.findAll('script')]
     html_without_script_len =  len(str(soup.prettify()))
 
-    if(html_without_script_len < 10000 and max_script_len < 10000 or
-           (max(html_without_script_len,max_script_len) / min(html_without_script_len,max_script_len)) ):
-        print 'WEBDRIVER'
+    if(html_without_script_len < 10000 and max_script_len < 10000 ):
+       # or (max(html_without_script_len,max_script_len)*1.0 / min(html_without_script_len,max_script_len) *1.0) <10.0):
+        return 'WEBDRIVER'
     # 大了很多
     elif(max_script_len > html_without_script_len):
-        print 'JSON'
+        return 'JSON'
     else:
-        print 'REQUEST'
+        return 'REQUEST'
 
-def analysis_selector(method,url):
+def analysis_goods_list(method,url,soup):
     if(method == 'WEBDRIVER'):
         pass
     elif(method == 'JSON'):
-        pass
+        analysis_json_data(url,soup)
     else:
-        pass
+        soup = get_soup_by_request(url)
+        return analysis_by_tag(get_goods_list_tag_by_soup(soup),url)
+
 
 if __name__ == '__main__':
 
-    # url = "https://search.jd.com/Search?keyword=%E6%89%8B%E6%9C%BA&enc=utf-8&suggest=1.his.0.0&wq=&pvid=9e4453eb3e86474c9f0d8ce8719b03aa"
-    url = "https://s.taobao.com/search?initiative_id=tbindexz_20170509&ie=utf8&spm=a21bo.50862.201856-taobao-item.2&sourceId=tb.index&search_type=item&ssid=s5-e&commend=all&imgfile=&q=%E6%89%8B%E6%9C%BA&suggest=0_1&_input_charset=utf-8&wq=shouji&suggest_query=shouji&source=suggest"
+    # url = "https://list.jd.com/list.html?cat=1620,1621,1626"
+    # url = "https://s.taobao.com/search?initiative_id=tbindexz_20170509&ie=utf8&spm=a21bo.50862.201856-taobao-item.2&sourceId=tb.index&search_type=item&ssid=s5-e&commend=all&imgfile=&q=%E6%89%8B%E6%9C%BA&suggest=0_1&_input_charset=utf-8&wq=shouji&suggest_query=shouji&source=suggest"
     # url = "http://list.mogujie.com/s?q=%E6%89%8B%E6%9C%BA%E5%A3%B3%E8%8B%B9%E6%9E%9C6&from=querytip0&ptp=1._mf1_1239_15261.0.0.5u1T9Y"
-    # url = "http://search.dangdang.com/?key=%CA%E9&act=input"
+    # url = "http://search.dangdang.com/?key=%CA%E9"
     # url = "http://search.suning.com/%E6%89%8B%E6%9C%BA/"
-
-    # url = "http://search.yhd.com/c0-0/k%25E9%259B%25B6%25E9%25A3%259F/?tp=1.1.12.0.3.Ljm`JdW-10-4v5ud"
+    #
+    url = "http://search.yhd.com/c0-0/k%25E9%259B%25B6%25E9%25A3%259F/?tp=1.1.12.0.3.Ljm`JdW-10-4v5ud"
     # url = "http://www.meilishuo.com/search/goods/?page=1&searchKey=%E8%A3%99%E5%AD%90%E5%A4%8F&acm=3.mce.1_4_.17721.33742-33692.3Va85qjefPdEZ.mid_17721-lc_201"
     # url = "http://search.gome.com.cn/search?question=%E6%89%8B%E6%9C%BA"
     # url = "http://search.jumei.com/?referer=yiqifa_cps__ODg5MjEzfDAwczliN2JmZGVjN2EzOWQ2M2I5"
@@ -250,7 +362,13 @@ if __name__ == '__main__':
     # goods_list_tag = get_goods_list_tag_from_soup(soup)
     # goods_list_method_selector(url)
 
+    # url = "https://list.jd.com/list.html?cat=1713,4855,4859"
+    url = "https://s.taobao.com/list?q=%E6%8B%BE%E8%B4%A7"
 
+    soup = get_soup_by_request("https://s.taobao.com/list?q=%E6%8B%BE%E8%B4%A7")
+    print analysis_method_selector(soup)
+
+    # goods_list_tag = analysis_by_tag(get_goods_list_tag_by_soup(get_soup_by_request(url)),url)
 
     # debug_script_html_len(url)
     '''
@@ -271,5 +389,5 @@ if __name__ == '__main__':
 
     # get_goods_url_from_tag(goods_list_tag)
 
-
-    analysis_json_data('https://s.taobao.com/list?q=%E8%B4%9D%E5%8F%B8')
+    # url = 'https://s.taobao.com/list?q=%E8%B4%9D%E5%8F%B8'
+    # analysis_json_data(url)

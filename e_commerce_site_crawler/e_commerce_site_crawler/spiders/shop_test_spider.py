@@ -52,7 +52,7 @@ if __name__ == '__main__':
     print goal_url
 
     res_url_list = []
-    if(goal_url != -1):
+    if(goal_url_len != -1):
         """
             对url进行一遍简化
         """
@@ -68,7 +68,7 @@ if __name__ == '__main__':
                 key_index += 1
                 break
             key_index+=1
-
+        # print goal_url
         original_html_len = len(get_html_with_request(goal_url))
 
         while (key_index<len(goal_url_spilted)):
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         # 假设所有url类型都相同，且默认为商品列表页面，进行解析
         for tlist in mylist:
             # print item_list_url
-            if tlist[1]!= None and tlist[1]!='':
+            if tlist[1]!= None and tlist[1]!='' and ('list' in tlist[1] or 'search' in tlist[1]):
                 res_url_list.append(tlist[1])
 
 
@@ -94,17 +94,31 @@ if __name__ == '__main__':
 
     if(len(res_url_list)>1):
 
-        test_url = res_url_list[0]
+        pageDict = None
+        # test_url = res_url_list[0]
+        demo_url = None
+        for test_url in res_url_list:
 
-        page_list = get_next_urlList_by_firstpage_url(test_url)
-        pageDict = get_pageKeyDic(page_list)
+            page_list = get_next_urlList_by_firstpage_url(test_url)
+
+            if(page_list == None):continue
+
+            pageDict = get_pageKeyDic(page_list)
+
+            if(pageDict == None or len(pageDict)==0):continue
+
+            demo_url = test_url
+            break
+
+        if(pageDict == None or page_list == None):
+            raise Exception("页面解析异常")
 
         print pageDict
 
         print page_list
 
-        attached_1 = page_list[1].replace(test_url, '')
-        attached_2 = page_list[2].replace(test_url, '')
+        attached_1 = page_list[1].replace(demo_url, '')
+        attached_2 = page_list[2].replace(demo_url, '')
 
 
         for goods_list_url in res_url_list:
@@ -116,9 +130,7 @@ if __name__ == '__main__':
             print allnumber
             # next_all_url_list = get_all_page_urls(pageKeyDic,page_list,allnumber)
 
-            res = get_all_page_urls(pageDict, [u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D',
-                                                        u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=60',
-                                                        u'https://s.taobao.com/list?q=%E7%BE%BD%E7%BB%92%E6%9C%8D&bcoffset=12&s=120'],
+            res = get_all_page_urls(pageDict, [goods_list_url,next_url1,next_url2],
                                     allnumber)
             for x in res:
                 print str(x)
